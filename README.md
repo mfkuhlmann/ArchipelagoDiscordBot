@@ -112,7 +112,7 @@ If configuration is missing, the process exits with a clear `Config error`.
 
 You can also run the bot with Docker Compose.
 
-### Build and start
+### Local build and start
 
 1. Create your `.env` file from `.env.example`
 2. Fill in at least `DISCORD_TOKEN`
@@ -124,10 +124,39 @@ docker compose up -d --build
 
 This setup:
 
-- builds the image from the local `Dockerfile`
+- tags the image as `ghcr.io/mfkuh/archipelagodiscordbot:latest` by default
+- builds the image from the local `Dockerfile` when you use `--build`
 - injects environment variables from `.env`
 - persists the SQLite database in `./data`
 - restarts the bot automatically unless you stop it
+
+### Pull from GitHub Container Registry
+
+The repository includes a GitHub Actions workflow that builds and pushes the
+container image to GHCR on every push to `main`.
+
+Default image:
+
+```text
+ghcr.io/mfkuh/archipelagodiscordbot:latest
+```
+
+To deploy from the registry on a server:
+
+```bash
+docker login ghcr.io
+docker compose pull
+docker compose up -d
+```
+
+If you want to point Compose at a different tag or fork, set `ARCHIBOT_IMAGE`
+in your `.env` before running Compose.
+
+Example:
+
+```bash
+ARCHIBOT_IMAGE=ghcr.io/mfkuh/archipelagodiscordbot:latest
+```
 
 ### View logs
 
@@ -146,6 +175,8 @@ docker compose down
 - The database path should stay at the default `./data/bot.db` when using the provided Compose setup
 - Password-protected Archipelago rooms still require `BOT_SECRET_KEY` in `.env`
 - If you change Python dependencies, rebuild with `docker compose up -d --build`
+- The GHCR image does not contain your secrets; `.env` is still required at runtime
+- Private GHCR packages can still be used, but the deploy server must authenticate with `docker login ghcr.io`
 
 ## First Use In Discord
 
