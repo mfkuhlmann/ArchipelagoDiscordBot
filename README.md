@@ -48,6 +48,11 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 uv sync --all-groups
 ```
 
+If you do not want to self-host the bot, you can also use the hosted version
+and install it directly with this invite link:
+
+https://discord.com/oauth2/authorize?client_id=1496598533774639246
+
 ### Linux notes
 
 On Linux, make sure you have Python 3.13+, `uv`, and the usual build tools
@@ -58,14 +63,14 @@ sudo apt update
 sudo apt install python3 python3-venv python3-pip
 ```
 
-If `uv` is not installed yet, install it with one of the methods from the
-official docs, for example:
+If `uv` is not installed yet, install it first. One common option is:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Then restart your shell and install project dependencies:
+After that, restart your shell so `uv` is available on your `PATH`, then
+install the project dependencies:
 
 ```bash
 uv sync --all-groups
@@ -181,8 +186,6 @@ docker compose down
 - The database path should stay at the default `./data/bot.db` when using the provided Compose setup
 - Password-protected Archipelago rooms still require `BOT_SECRET_KEY` in `.env`
 - If you change Python dependencies, rebuild with `docker compose up -d --build`
-- The GHCR image does not contain your secrets; `.env` is still required at runtime
-- Private GHCR packages can still be used, but the deploy server must authenticate with `docker login ghcr.io`
 
 ## First Use In Discord
 
@@ -281,17 +284,6 @@ The current implementation is covered by automated tests for:
 - WebSocket client behavior
 - session management and batching
 - Discord command cogs
-
-## Architecture
-
-See [2026-04-22-archipelago-discord-bot-design.md](</x:/repos/ArchipelagoDiscordBot/docs/superpowers/specs/2026-04-22-archipelago-discord-bot-design.md>)
-for the full design. Short version:
-
-- `archibot.archipelago.client.ArchipelagoClient` handles WebSocket frames and emits `UnlockEvent`
-- `archibot.session.tracker_session.TrackerSession` wraps connect/reconnect lifecycle
-- `archibot.session.manager.SessionManager` owns live sessions and channel output
-- `archibot.discord_layer.bot.ArchibotBot` wires the Discord bot, DB, and cogs together
-- `archibot.persistence.*` stores links, tracked sessions, and muted slots in SQLite
 
 ## Limitations
 
