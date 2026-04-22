@@ -13,11 +13,11 @@ DEFAULT_SLOT_INFO = {
 DEFAULT_DATA_PACKAGE = {
     "games": {
         "A Link to the Past": {
-            "item_name_to_id": {"Master Sword": 1},
+            "item_name_to_id": {"Lamp": 1},
             "location_name_to_id": {"Eastern Palace - Big Chest": 10},
         },
         "Super Metroid": {
-            "item_name_to_id": {"Missile": 2},
+            "item_name_to_id": {"Missile": 1, "Super Missile": 2},
             "location_name_to_id": {"Landing Site": 20},
         },
     }

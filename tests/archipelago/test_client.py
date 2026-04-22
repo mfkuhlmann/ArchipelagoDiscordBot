@@ -25,7 +25,9 @@ def test_feed_emits_unlock_event():
     event = events[0]
     assert event.receiver_slot == "Bork"
     assert event.sender_slot == "Meow"
-    assert event.item_name == "Master Sword"
+    assert event.item_name == "Missile"
+    assert event.location_name == "Eastern Palace - Big Chest"
+    assert event.game == "A Link to the Past"
 
 
 def test_feed_raises_connection_refused():

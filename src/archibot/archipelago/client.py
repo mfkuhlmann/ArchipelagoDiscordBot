@@ -97,17 +97,23 @@ class ArchipelagoClient:
         if sender_id == 0 or sender_id == receiver_id:
             return None
 
-        game = slot_game(self.slot_info, sender_id)
+        sender_game = slot_game(self.slot_info, sender_id)
+        receiver_game = slot_game(self.slot_info, receiver_id)
+        item_id = int(item.get("item", 0))
+        location_id = int(item.get("location", 0))
+        item_name = lookup_item_name(self.data_package, receiver_game, item_id)
+        if item_name == f"item[{item_id}]":
+            item_name = lookup_item_name(self.data_package, sender_game, item_id)
         return UnlockEvent(
             receiver_slot=slot_name(self.slot_info, receiver_id),
             sender_slot=slot_name(self.slot_info, sender_id),
-            item_name=lookup_item_name(self.data_package, game, int(item.get("item", 0))),
+            item_name=item_name,
             location_name=lookup_location_name(
                 self.data_package,
-                game,
-                int(item.get("location", 0)),
+                sender_game,
+                location_id,
             ),
-            game=game,
+            game=sender_game,
             flags=int(item.get("flags", 0)),
         )
 

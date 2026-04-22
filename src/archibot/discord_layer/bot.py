@@ -1,6 +1,8 @@
 """Discord bot harness."""
 from __future__ import annotations
 
+import logging
+
 import discord
 from discord.ext import commands
 
@@ -15,6 +17,8 @@ from archibot.persistence.muted_slots import MutedSlots
 from archibot.persistence.sessions import SessionRecord, Sessions
 from archibot.persistence.slot_links import SlotLinks
 from archibot.session.manager import SessionManager
+
+log = logging.getLogger(__name__)
 
 
 class ArchibotBot(commands.Bot):
@@ -44,6 +48,8 @@ class ArchibotBot(commands.Bot):
         await self.add_cog(TrackingCog(self))
         await self.add_cog(LinkingCog(self))
         await self.add_cog(ModerationCog(self))
+        synced = await self.tree.sync()
+        log.info("Synced %s application commands", len(synced))
         await self.session_manager.restore_sessions()
 
     async def close(self) -> None:

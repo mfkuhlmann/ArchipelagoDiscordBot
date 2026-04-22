@@ -22,7 +22,8 @@ def test_build_connect_packet_uses_tracker_tag():
 
 def test_lookup_helpers_resolve_names():
     data_package = normalize_data_package(DEFAULT_DATA_PACKAGE)
-    assert lookup_item_name(data_package, "A Link to the Past", 1) == "Master Sword"
+    assert lookup_item_name(data_package, "A Link to the Past", 1) == "Lamp"
+    assert lookup_item_name(data_package, "Super Metroid", 1) == "Missile"
     assert (
         lookup_location_name(data_package, "A Link to the Past", 10)
         == "Eastern Palace - Big Chest"
