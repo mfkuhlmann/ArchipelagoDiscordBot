@@ -209,7 +209,7 @@ Once live events arrive, the bot posts messages like:
 ```text
 content: <@123456789>
 embed title: 🟣 Master Sword
-embed body: Alex got an item from Elster's Dark Souls Remastered
+embed body: Alice got an item from Bob's Dark Souls Remastered
 location: BT: Wanderer Hood
 ```
 
@@ -241,14 +241,6 @@ with Discord's `Manage Channels` permission.
 
 If omitted, the bot defaults to `embed`.
 
-## Raspberry Counter
-
-The bot keeps a hidden per-channel counter for items named `Raspberry`.
-
-- Every time a tracked unlock event contains the item name `Raspberry`, the counter increases
-- The count is grouped by the player who found it
-- Use `/raspberry` in the tracked channel to see the total and the per-player breakdown
-- The counter is cleared when that channel is untracked
 
 ## Local Smoke Test
 
