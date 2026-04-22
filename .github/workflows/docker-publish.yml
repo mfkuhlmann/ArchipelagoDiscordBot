@@ -1,11 +1,6 @@
 name: Docker Publish
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - "v*"
   release:
     types:
       - published
@@ -38,10 +33,9 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/archipelagodiscordbot
           tags: |
-            type=raw,value=latest,enable=${{ github.event_name == 'release' || github.ref == 'refs/heads/main' }}
+            type=raw,value=latest
             type=sha
-            type=ref,event=tag,enable=${{ github.event_name == 'push' }}
-            type=raw,value=${{ github.event.release.tag_name }},enable=${{ github.event_name == 'release' }}
+            type=raw,value=${{ github.event.release.tag_name }}
 
       - name: Build and push image
         uses: docker/build-push-action@v6
