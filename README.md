@@ -133,7 +133,8 @@ This setup:
 ### Pull from GitHub Container Registry
 
 The repository includes a GitHub Actions workflow that builds and pushes the
-container image to GHCR on every push to `main`.
+container image to GHCR on every push to `main` and whenever a GitHub Release
+is published.
 
 Default image:
 
@@ -146,6 +147,7 @@ Published tags:
 - `latest` for pushes to `main`
 - the Git SHA for every published build
 - the Git tag name when you push a tag like `v1.2.3`
+- the release tag name when you publish a GitHub Release
 
 To deploy from the registry on a server:
 

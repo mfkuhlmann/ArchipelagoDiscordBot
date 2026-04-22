@@ -6,6 +6,9 @@ on:
       - main
     tags:
       - "v*"
+  release:
+    types:
+      - published
 
 jobs:
   docker:
@@ -35,9 +38,10 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/archipelagodiscordbot
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' || github.ref == 'refs/heads/main' }}
             type=sha
-            type=ref,event=tag
+            type=ref,event=tag,enable=${{ github.event_name == 'push' }}
+            type=raw,value=${{ github.event.release.tag_name }},enable=${{ github.event_name == 'release' }}
 
       - name: Build and push image
         uses: docker/build-push-action@v6
