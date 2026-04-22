@@ -141,6 +141,12 @@ Default image:
 ghcr.io/mfkuh/archipelagodiscordbot:latest
 ```
 
+Published tags:
+
+- `latest` for pushes to `main`
+- the Git SHA for every published build
+- the Git tag name when you push a tag like `v1.2.3`
+
 To deploy from the registry on a server:
 
 ```bash
