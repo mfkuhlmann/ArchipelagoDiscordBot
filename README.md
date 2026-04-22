@@ -8,9 +8,10 @@ pinging the receiver when they have linked their Discord account to a slot.
 
 - Connects to an Archipelago room as a tracker client over WebSocket
 - Filters `PrintJSON` `ItemSend` events down to cross-player sends
-- Posts a plain-text unlock message to a Discord channel
+- Posts a color-coded embed for each unlock to a Discord channel
 - Lets players link their Archipelago slot to their Discord user
 - Lets moderators track rooms and mute noisy receiver slots per channel
+- Tracks found items named `Raspberry` per channel and per finder in the background
 
 ## Requirements
 
@@ -166,16 +167,20 @@ docker compose down
 Once live events arrive, the bot posts messages like:
 
 ```text
-🟣 <@123456789> got **Master Sword** from Meow's A Link to the Past (Eastern Palace - Big Chest)
+content: <@123456789>
+embed title: 🟣 Master Sword
+embed body: Alex got an item from Elster's Dark Souls Remastered
+location: BT: Wanderer Hood
 ```
 
 ## Slash Commands
 
 | Command | Who | Effect |
 |---|---|---|
-| `/track host port slot [password]` | Moderator | Start tracking a room in this channel |
+| `/track host port slot [message_style] [password]` | Moderator | Start tracking a room in this channel |
 | `/untrack` | Moderator | Stop tracking in this channel |
 | `/status` | Anyone | Show session state |
+| `/raspberry` | Anyone | Show the total Raspberry count and player breakdown for this channel |
 | `/link slot` | Anyone | Link your slot to your Discord account |
 | `/unlink [slot]` | Anyone | Remove one slot link or all your links |
 | `/links` | Anyone | List all slot-to-user mappings in this guild |
@@ -186,6 +191,24 @@ Once live events arrive, the bot posts messages like:
 
 Moderator commands use the configured role name first and also allow users
 with Discord's `Manage Channels` permission.
+
+### Message style
+
+`/track` now accepts a `message_style` option:
+
+- `embed` sends color-coded Discord embeds for unlocks
+- `plain` sends the older one-line text format
+
+If omitted, the bot defaults to `embed`.
+
+## Raspberry Counter
+
+The bot keeps a hidden per-channel counter for items named `Raspberry`.
+
+- Every time a tracked unlock event contains the item name `Raspberry`, the counter increases
+- The count is grouped by the player who found it
+- Use `/raspberry` in the tracked channel to see the total and the per-player breakdown
+- The counter is cleared when that channel is untracked
 
 ## Local Smoke Test
 
@@ -237,5 +260,5 @@ for the full design. Short version:
 
 - Events that happen while the bot is offline are lost
 - One tracked Archipelago session per Discord channel
-- Unlocks are plain text for the MVP, not rich embeds
+- Unlocks are posted as embeds with a flag-colored border
 - Goal, release, collect, hint, chat, join, and part events are not posted yet

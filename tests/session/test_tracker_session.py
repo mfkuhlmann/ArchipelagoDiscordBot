@@ -38,7 +38,7 @@ class RefusedClient:
 
 
 def record() -> SessionRecord:
-    return SessionRecord(100, 10, "localhost", 38281, "Meow", "now")
+    return SessionRecord(100, 10, "localhost", 38281, "Meow", "embed", "now")
 
 
 @pytest.mark.asyncio

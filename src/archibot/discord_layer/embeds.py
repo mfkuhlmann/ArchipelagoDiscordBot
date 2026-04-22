@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import discord
 
+from archibot.persistence.raspberry_counts import RaspberryCount
 from archibot.persistence.sessions import SessionRecord
 
 
@@ -43,4 +44,15 @@ def terminal_failure_embed(
     embed.add_field(name="Slot", value=record.slot_name, inline=False)
     embed.add_field(name="Last error", value=type(error).__name__, inline=False)
     embed.add_field(name="Attempts made", value=str(attempts), inline=False)
+    return embed
+
+
+def raspberry_embed(total: int, counts: list[RaspberryCount]) -> discord.Embed:
+    embed = discord.Embed(title="Raspberry Counter", color=discord.Color.magenta())
+    embed.add_field(name="Total found", value=str(total), inline=False)
+    if counts:
+        body = "\n".join(f"{row.sender_slot}: {row.count}" for row in counts)
+    else:
+        body = "No Raspberries found yet."
+    embed.add_field(name="Found by player", value=body, inline=False)
     return embed

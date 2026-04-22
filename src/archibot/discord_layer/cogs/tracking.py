@@ -1,5 +1,7 @@
-"""/track, /untrack, /status, and /testunlock."""
+"""/track, /untrack, /status, /raspberry, and /testunlock."""
 from __future__ import annotations
+
+from typing import Literal
 
 import discord
 from discord import app_commands
@@ -26,6 +28,7 @@ class TrackingCog(commands.Cog):
         host: str,
         port: int,
         slot: str,
+        message_style: Literal["embed", "plain"] = "embed",
         password: str = "",
     ) -> None:
         if not self._check_mod(interaction):
@@ -41,6 +44,7 @@ class TrackingCog(commands.Cog):
                 host=host,
                 port=port,
                 slot_name=slot,
+                message_style=message_style,
                 password=password,
             )
         except ValueError as exc:
@@ -60,7 +64,7 @@ class TrackingCog(commands.Cog):
             )
             return
         await interaction.response.send_message(
-            f"Started tracking `{host}:{port}` as slot `{slot}`."
+            f"Started tracking `{host}:{port}` as slot `{slot}` with `{message_style}` messages."
         )
 
     @app_commands.command(name="untrack", description="Stop tracking in this channel.")
@@ -87,6 +91,14 @@ class TrackingCog(commands.Cog):
                 mute_count=len(mutes),
             )
         )
+
+    @app_commands.command(
+        name="raspberry",
+        description="Show how many Raspberries have been found in this channel's tracked session.",
+    )
+    async def raspberry(self, interaction: discord.Interaction) -> None:
+        total, counts = await self.bot.session_manager.raspberry_summary(interaction.channel_id)
+        await interaction.response.send_message(embed=embeds.raspberry_embed(total, counts))
 
     @app_commands.command(name="testunlock", description="Post a fake unlock message.")
     async def testunlock(self, interaction: discord.Interaction) -> None:

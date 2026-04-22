@@ -14,12 +14,14 @@ async def test_upsert_and_get_passwordless_session(db):
         host="localhost",
         port=38281,
         slot_name="Meow",
+        message_style="embed",
         password="",
     )
     stored = await repo.get(100)
     assert stored is not None
     record, password = stored
     assert record.host == "localhost"
+    assert record.message_style == "embed"
     assert password == ""
 
 
@@ -31,9 +33,11 @@ async def test_upsert_encrypts_and_decrypts_password(db):
         host="localhost",
         port=38281,
         slot_name="Meow",
+        message_style="plain",
         password="hunter2",
     )
-    _, password = await repo.get(100)
+    record, password = await repo.get(100)
+    assert record.message_style == "plain"
     assert password == "hunter2"
 
 
@@ -46,6 +50,7 @@ async def test_password_requires_key(db):
             host="localhost",
             port=38281,
             slot_name="Meow",
+            message_style="embed",
             password="hunter2",
         )
 
@@ -58,6 +63,7 @@ async def test_delete_removes_row(db):
         host="localhost",
         port=38281,
         slot_name="Meow",
+        message_style="embed",
         password="",
     )
     assert await repo.delete(100) == 1

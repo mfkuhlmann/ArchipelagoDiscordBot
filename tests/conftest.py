@@ -16,6 +16,7 @@ if str(SRC) not in sys.path:
 from archibot.persistence.crypto import PasswordCrypto
 from archibot.persistence.db import Database
 from archibot.persistence.muted_slots import MutedSlots
+from archibot.persistence.raspberry_counts import RaspberryCounts
 from archibot.persistence.sessions import Sessions
 from archibot.persistence.slot_links import SlotLinks
 from archibot.session.manager import SessionManager
@@ -76,6 +77,7 @@ async def cogs_setup(db: Database):
         slot_links=SlotLinks(db),
         sessions=Sessions(db, PasswordCrypto(None)),
         muted_slots=MutedSlots(db),
+        raspberry_counts=RaspberryCounts(db),
         password_crypto=PasswordCrypto(None),
         post_message=post_message,
         post_failure=post_failure,

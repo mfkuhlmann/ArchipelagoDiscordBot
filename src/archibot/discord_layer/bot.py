@@ -14,6 +14,7 @@ from archibot.discord_layer.cogs.tracking import TrackingCog
 from archibot.persistence.crypto import PasswordCrypto
 from archibot.persistence.db import Database
 from archibot.persistence.muted_slots import MutedSlots
+from archibot.persistence.raspberry_counts import RaspberryCounts
 from archibot.persistence.sessions import SessionRecord, Sessions
 from archibot.persistence.slot_links import SlotLinks
 from archibot.session.manager import SessionManager
@@ -37,10 +38,12 @@ class ArchibotBot(commands.Bot):
         slot_links = SlotLinks(self.db)
         sessions = Sessions(self.db, self.password_crypto)
         muted_slots = MutedSlots(self.db)
+        raspberry_counts = RaspberryCounts(self.db)
         self.session_manager = SessionManager(
             slot_links=slot_links,
             sessions=sessions,
             muted_slots=muted_slots,
+            raspberry_counts=raspberry_counts,
             password_crypto=self.password_crypto,
             post_message=self._post_message,
             post_failure=self._post_failure,

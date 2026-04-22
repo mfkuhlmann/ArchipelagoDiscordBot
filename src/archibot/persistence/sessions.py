@@ -15,6 +15,7 @@ class SessionRecord:
     host: str
     port: int
     slot_name: str
+    message_style: str
     created_at: str
 
 
@@ -31,6 +32,7 @@ class Sessions:
         host: str,
         port: int,
         slot_name: str,
+        message_style: str,
         password: str,
     ) -> SessionRecord:
         created_at = datetime.now(UTC).isoformat()
@@ -38,24 +40,42 @@ class Sessions:
         await self.db.execute(
             """
             INSERT INTO sessions (
-                channel_id, guild_id, host, port, slot_name, password_enc, created_at
+                channel_id, guild_id, host, port, slot_name, message_style, password_enc, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(channel_id) DO UPDATE
             SET guild_id = excluded.guild_id,
                 host = excluded.host,
                 port = excluded.port,
                 slot_name = excluded.slot_name,
+                message_style = excluded.message_style,
                 password_enc = excluded.password_enc
             """,
-            (channel_id, guild_id, host, port, slot_name, password_enc, created_at),
+            (
+                channel_id,
+                guild_id,
+                host,
+                port,
+                slot_name,
+                message_style,
+                password_enc,
+                created_at,
+            ),
         )
-        return SessionRecord(channel_id, guild_id, host, port, slot_name, created_at)
+        return SessionRecord(
+            channel_id,
+            guild_id,
+            host,
+            port,
+            slot_name,
+            message_style,
+            created_at,
+        )
 
     async def get(self, channel_id: int) -> tuple[SessionRecord, str] | None:
         row = await self.db.fetchone(
             """
-            SELECT channel_id, guild_id, host, port, slot_name, password_enc, created_at
+            SELECT channel_id, guild_id, host, port, slot_name, message_style, password_enc, created_at
             FROM sessions
             WHERE channel_id = ?
             """,
@@ -68,7 +88,7 @@ class Sessions:
     async def list_all(self) -> list[tuple[SessionRecord, str]]:
         rows = await self.db.fetchall(
             """
-            SELECT channel_id, guild_id, host, port, slot_name, password_enc, created_at
+            SELECT channel_id, guild_id, host, port, slot_name, message_style, password_enc, created_at
             FROM sessions
             ORDER BY channel_id
             """
@@ -93,6 +113,7 @@ class Sessions:
                 host=str(row["host"]),
                 port=int(row["port"]),
                 slot_name=str(row["slot_name"]),
+                message_style=str(row["message_style"]),
                 created_at=str(row["created_at"]),
             ),
             self.crypto.decrypt(row["password_enc"]),

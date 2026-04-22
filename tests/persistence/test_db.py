@@ -1,7 +1,13 @@
 async def test_migrate_creates_all_tables(db):
     tables = await db.fetchall("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
     names = {row["name"] for row in tables}
-    assert {"slot_links", "sessions", "muted_slots", "schema_version"}.issubset(names)
+    assert {
+        "slot_links",
+        "sessions",
+        "muted_slots",
+        "raspberry_counts",
+        "schema_version",
+    }.issubset(names)
 
 
 async def test_migrate_is_idempotent(db):
@@ -26,6 +32,7 @@ async def test_sessions_columns(db):
         "host",
         "port",
         "slot_name",
+        "message_style",
         "password_enc",
         "created_at",
     }
@@ -35,3 +42,9 @@ async def test_muted_slots_columns(db):
     info = await db.fetchall("PRAGMA table_info(muted_slots)")
     cols = {row["name"] for row in info}
     assert cols == {"channel_id", "slot_name"}
+
+
+async def test_raspberry_counts_columns(db):
+    info = await db.fetchall("PRAGMA table_info(raspberry_counts)")
+    cols = {row["name"] for row in info}
+    assert cols == {"channel_id", "sender_slot", "count"}

@@ -7,9 +7,15 @@ from collections.abc import Awaitable, Callable
 from archibot.events import UnlockEvent
 from archibot.persistence.crypto import PasswordCrypto
 from archibot.persistence.muted_slots import MutedSlots
+from archibot.persistence.raspberry_counts import RaspberryCount, RaspberryCounts
 from archibot.persistence.sessions import SessionRecord, Sessions
 from archibot.persistence.slot_links import SlotLinks
-from archibot.session.formatter import format_unlock, format_unlocks_batch
+from archibot.session.formatter import (
+    format_unlock,
+    format_unlocks_batch,
+    mention_for_user,
+    unlock_embed,
+)
 from archibot.session.tracker_session import TrackerSession
 
 MessagePoster = Callable[..., Awaitable[None]]
@@ -24,6 +30,7 @@ class SessionManager:
         slot_links: SlotLinks,
         sessions: Sessions,
         muted_slots: MutedSlots,
+        raspberry_counts: RaspberryCounts,
         password_crypto: PasswordCrypto,
         post_message: MessagePoster,
         post_failure: FailurePoster,
@@ -32,6 +39,7 @@ class SessionManager:
         self.slot_links = slot_links
         self.sessions = sessions
         self.muted_slots = muted_slots
+        self.raspberry_counts = raspberry_counts
         self.password_crypto = password_crypto
         self.post_message = post_message
         self.post_failure = post_failure
@@ -69,6 +77,9 @@ class SessionManager:
         session = self._sessions.get(channel_id)
         return [] if session is None else session.players
 
+    async def raspberry_summary(self, channel_id: int) -> tuple[int, list[RaspberryCount]]:
+        return await self.raspberry_counts.summary_for_channel(channel_id)
+
     async def track(
         self,
         *,
@@ -77,6 +88,7 @@ class SessionManager:
         host: str,
         port: int,
         slot_name: str,
+        message_style: str = "embed",
         password: str = "",
     ) -> None:
         if channel_id in self._sessions:
@@ -88,6 +100,7 @@ class SessionManager:
             host=host,
             port=port,
             slot_name=slot_name,
+            message_style=message_style,
             password=password,
         )
         await self._start_session(record, password)
@@ -106,6 +119,7 @@ class SessionManager:
         self._queues.pop(channel_id, None)
         self._session_records.pop(channel_id, None)
         await self.sessions.delete(channel_id)
+        await self.raspberry_counts.clear_channel(channel_id)
 
     async def _start_session(self, record: SessionRecord, password: str) -> None:
         queue = self._queues.setdefault(record.channel_id, asyncio.Queue())
@@ -147,6 +161,8 @@ class SessionManager:
 
             rendered: list[tuple[UnlockEvent, int | None]] = []
             for queued_event in batch:
+                if queued_event.item_name.casefold() == "raspberry":
+                    await self.raspberry_counts.increment(channel_id, queued_event.sender_slot)
                 if await self.muted_slots.is_muted(channel_id, queued_event.receiver_slot):
                     continue
                 rendered.append(
@@ -159,12 +175,20 @@ class SessionManager:
             if not rendered:
                 continue
 
-            if len(rendered) >= 3:
-                await self.post_message(channel_id=channel_id, content=format_unlocks_batch(rendered))
+            if len(rendered) >= 3 and self._session_records[channel_id].message_style == "embed":
+                content, embed = format_unlocks_batch(rendered)
+                await self.post_message(channel_id=channel_id, content=content, embed=embed)
                 continue
 
             for queued_event, user_id in rendered:
+                if self._session_records[channel_id].message_style == "plain":
+                    await self.post_message(
+                        channel_id=channel_id,
+                        content=format_unlock(queued_event, user_id),
+                    )
+                    continue
                 await self.post_message(
                     channel_id=channel_id,
-                    content=format_unlock(queued_event, user_id),
+                    content=mention_for_user(user_id),
+                    embed=unlock_embed(queued_event, user_id),
                 )
