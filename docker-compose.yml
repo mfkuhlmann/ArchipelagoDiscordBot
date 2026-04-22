@@ -1,0 +1,11 @@
+services:
+  archibot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: archibot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data

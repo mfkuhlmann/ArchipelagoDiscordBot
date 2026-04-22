@@ -1,0 +1,14 @@
+.git
+.omc
+.omx
+.pytest_tmp
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.env
+data/*.db
+data/*.db-journal
+tests
+pytest-cache-files-*
