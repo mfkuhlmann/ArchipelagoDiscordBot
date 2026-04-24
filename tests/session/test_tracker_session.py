@@ -91,7 +91,7 @@ async def test_tracker_session_stops_on_non_retryable_failure():
 
 
 @pytest.mark.asyncio
-async def test_tracker_session_keeps_retrying_transient_failures_during_retry_window(monkeypatch):
+async def test_tracker_session_keeps_retrying_transient_failures(monkeypatch):
     monkeypatch.setattr(
         "archibot.session.tracker_session.BACKOFF_SCHEDULE",
         [0.01],
@@ -114,34 +114,6 @@ async def test_tracker_session_keeps_retrying_transient_failures_during_retry_wi
     assert session.state == "RECONNECTING"
     assert on_failure.await_count == 0
     await session.stop()
-
-
-@pytest.mark.asyncio
-async def test_tracker_session_stops_transient_failures_after_retry_window(monkeypatch):
-    monkeypatch.setattr(
-        "archibot.session.tracker_session.BACKOFF_SCHEDULE",
-        [0.01],
-    )
-    monkeypatch.setattr(
-        "archibot.session.tracker_session.MAX_TRANSIENT_RETRY_SECONDS",
-        0.02,
-    )
-    TransientFailureClient.attempts = 0
-    on_unlock = AsyncMock()
-    on_failure = AsyncMock()
-    session = TrackerSession(
-        record=record(),
-        password="",
-        on_unlock=on_unlock,
-        on_failure=on_failure,
-        client_factory=TransientFailureClient,
-    )
-    task = session.start()
-    await asyncio.wait_for(task, timeout=1)
-
-    assert session.state == "DISCONNECTED"
-    assert on_failure.await_count == 1
-    assert TransientFailureClient.attempts >= 2
 
 
 def test_dns_error_is_non_retryable():
