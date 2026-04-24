@@ -13,7 +13,8 @@ from archibot.archipelago.protocol import ArchipelagoConnectionRefused
 from archibot.events import UnlockEvent
 from archibot.persistence.sessions import SessionRecord
 
-BACKOFF_SCHEDULE = [1, 2, 4, 8, 16, 32, 60, 60, 60, 60]
+BACKOFF_SCHEDULE = [1, 2, 4, 8, 16, 32, 60]
+MAX_TRANSIENT_RETRY_SECONDS = 60 * 60
 NON_RETRYABLE_ERRORS = {"InvalidSlot", "InvalidGame", "InvalidPassword"}
 
 UnlockHandler = Callable[[UnlockEvent], Awaitable[None]]
@@ -22,7 +23,7 @@ StateHandler = Callable[[str], Awaitable[None]]
 
 
 class TrackerSession:
-    """Owns one AP WebSocket session with capped retries."""
+    """Owns one AP WebSocket session with bounded transient retries."""
 
     def __init__(
         self,
@@ -76,6 +77,7 @@ class TrackerSession:
     async def _run(self) -> None:
         attempts = 0
         stable_since: float | None = None
+        retry_started_at: float | None = None
         while not self._stop_event.is_set():
             next_state = "RECONNECTING" if attempts else "CONNECTING"
             await self._set_state(next_state)
@@ -97,14 +99,24 @@ class TrackerSession:
             except Exception as exc:
                 if self._stop_event.is_set():
                     break
-                if stable_since is not None and time.monotonic() - stable_since >= 60:
+                now = time.monotonic()
+                if stable_since is not None and now - stable_since >= 60:
                     attempts = 0
+                    retry_started_at = None
                 stable_since = None
-                if self._is_non_retryable(exc) or attempts >= len(BACKOFF_SCHEDULE):
+                if self._is_non_retryable(exc):
                     await self._set_state("DISCONNECTED")
                     await self.on_failure(exc, attempts if attempts else 1)
                     return
-                delay = BACKOFF_SCHEDULE[attempts]
+                if retry_started_at is None:
+                    retry_started_at = now
+                retry_elapsed = now - retry_started_at
+                if retry_elapsed >= MAX_TRANSIENT_RETRY_SECONDS:
+                    await self._set_state("DISCONNECTED")
+                    await self.on_failure(exc, attempts if attempts else 1)
+                    return
+                delay = BACKOFF_SCHEDULE[min(attempts, len(BACKOFF_SCHEDULE) - 1)]
+                delay = min(delay, MAX_TRANSIENT_RETRY_SECONDS - retry_elapsed)
                 attempts += 1
                 await self._set_state("RECONNECTING")
                 await asyncio.sleep(delay)

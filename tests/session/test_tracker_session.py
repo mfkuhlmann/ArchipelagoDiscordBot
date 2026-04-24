@@ -37,6 +37,20 @@ class RefusedClient:
         return None
 
 
+class TransientFailureClient:
+    attempts = 0
+
+    def __init__(self, *_args, **_kwargs):
+        self.players = []
+
+    async def run(self, _password=""):
+        type(self).attempts += 1
+        raise OSError("server asleep")
+
+    async def close(self):
+        return None
+
+
 def record() -> SessionRecord:
     return SessionRecord(100, 10, "localhost", 38281, "Meow", "embed", "now")
 
@@ -74,6 +88,60 @@ async def test_tracker_session_stops_on_non_retryable_failure():
     await asyncio.sleep(0.05)
     assert session.state == "DISCONNECTED"
     assert on_failure.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_tracker_session_keeps_retrying_transient_failures_during_retry_window(monkeypatch):
+    monkeypatch.setattr(
+        "archibot.session.tracker_session.BACKOFF_SCHEDULE",
+        [0.01],
+    )
+    TransientFailureClient.attempts = 0
+    on_unlock = AsyncMock()
+    on_failure = AsyncMock()
+    session = TrackerSession(
+        record=record(),
+        password="",
+        on_unlock=on_unlock,
+        on_failure=on_failure,
+        client_factory=TransientFailureClient,
+    )
+    task = session.start()
+    while TransientFailureClient.attempts < 3:
+        await asyncio.sleep(0.01)
+
+    assert not task.done()
+    assert session.state == "RECONNECTING"
+    assert on_failure.await_count == 0
+    await session.stop()
+
+
+@pytest.mark.asyncio
+async def test_tracker_session_stops_transient_failures_after_retry_window(monkeypatch):
+    monkeypatch.setattr(
+        "archibot.session.tracker_session.BACKOFF_SCHEDULE",
+        [0.01],
+    )
+    monkeypatch.setattr(
+        "archibot.session.tracker_session.MAX_TRANSIENT_RETRY_SECONDS",
+        0.02,
+    )
+    TransientFailureClient.attempts = 0
+    on_unlock = AsyncMock()
+    on_failure = AsyncMock()
+    session = TrackerSession(
+        record=record(),
+        password="",
+        on_unlock=on_unlock,
+        on_failure=on_failure,
+        client_factory=TransientFailureClient,
+    )
+    task = session.start()
+    await asyncio.wait_for(task, timeout=1)
+
+    assert session.state == "DISCONNECTED"
+    assert on_failure.await_count == 1
+    assert TransientFailureClient.attempts >= 2
 
 
 def test_dns_error_is_non_retryable():
