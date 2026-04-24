@@ -20,6 +20,7 @@ NON_RETRYABLE_ERRORS = {"InvalidSlot", "InvalidGame", "InvalidPassword"}
 UnlockHandler = Callable[[UnlockEvent], Awaitable[None]]
 FailureHandler = Callable[[Exception, int], Awaitable[None]]
 StateHandler = Callable[[str], Awaitable[None]]
+RoomInfoHandler = Callable[[str], Awaitable[None]]
 
 
 class TrackerSession:
@@ -32,6 +33,7 @@ class TrackerSession:
         on_unlock: UnlockHandler,
         on_failure: FailureHandler,
         on_state_change: StateHandler | None = None,
+        on_room_info: RoomInfoHandler | None = None,
         client_factory: Callable[..., ArchipelagoClient] = ArchipelagoClient,
     ) -> None:
         self.record = record
@@ -39,6 +41,7 @@ class TrackerSession:
         self.on_unlock = on_unlock
         self.on_failure = on_failure
         self.on_state_change = on_state_change
+        self.on_room_info = on_room_info
         self.client_factory = client_factory
         self.state = "DISCONNECTED"
         self._task: asyncio.Task[None] | None = None
@@ -87,6 +90,7 @@ class TrackerSession:
                     self.record.port,
                     self.record.slot_name,
                     on_unlock=self.on_unlock,
+                    on_room_info=self.on_room_info,
                 )
                 await self._set_state("RUNNING")
                 stable_since = time.monotonic()

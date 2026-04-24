@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 
 from archibot.events import UnlockEvent
 from archibot.persistence.crypto import PasswordCrypto
@@ -78,7 +79,10 @@ class SessionManager:
         return [] if session is None else session.players
 
     async def raspberry_summary(self, channel_id: int) -> tuple[int, list[RaspberryCount]]:
-        return await self.raspberry_counts.summary_for_channel(channel_id)
+        record = self._session_records.get(channel_id)
+        if record is None:
+            return 0, []
+        return await self.raspberry_counts.summary_for_room(self._room_key(record))
 
     async def track(
         self,
@@ -119,7 +123,6 @@ class SessionManager:
         self._queues.pop(channel_id, None)
         self._session_records.pop(channel_id, None)
         await self.sessions.delete(channel_id)
-        await self.raspberry_counts.clear_channel(channel_id)
 
     async def _start_session(self, record: SessionRecord, password: str) -> None:
         queue = self._queues.setdefault(record.channel_id, asyncio.Queue())
@@ -136,9 +139,27 @@ class SessionManager:
                 record.channel_id, record, exc, attempts
             ),
             on_state_change=lambda _state: asyncio.sleep(0),
+            on_room_info=lambda room_seed_name: self._set_room_seed_name(
+                record.channel_id,
+                room_seed_name,
+            ),
         )
         self._sessions[record.channel_id] = session
         session.start()
+
+    async def _set_room_seed_name(self, channel_id: int, room_seed_name: str) -> None:
+        record = self._session_records.get(channel_id)
+        if record is not None:
+            updated_record = replace(record, room_seed_name=room_seed_name)
+            await self.raspberry_counts.merge_room(
+                self._room_key(record),
+                self._room_key(updated_record),
+            )
+            self._session_records[channel_id] = updated_record
+        await self.sessions.update_room_seed_name(channel_id, room_seed_name)
+
+    def _room_key(self, record: SessionRecord) -> str:
+        return self.raspberry_counts.room_key(record.host, record.port, record.room_seed_name)
 
     async def _queue_unlock(self, channel_id: int, event: UnlockEvent) -> None:
         await self._queues[channel_id].put(event)
@@ -162,7 +183,10 @@ class SessionManager:
             rendered: list[tuple[UnlockEvent, int | None]] = []
             for queued_event in batch:
                 if queued_event.item_name.casefold() == "raspberry":
-                    await self.raspberry_counts.increment(channel_id, queued_event.sender_slot)
+                    await self.raspberry_counts.increment(
+                        self._room_key(self._session_records[channel_id]),
+                        queued_event.sender_slot,
+                    )
                 if await self.muted_slots.is_muted(channel_id, queued_event.receiver_slot):
                     continue
                 rendered.append(

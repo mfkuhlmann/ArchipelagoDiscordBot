@@ -13,12 +13,13 @@ from archibot.session.manager import SessionManager
 
 
 class FakeTrackerSession:
-    def __init__(self, record, password, on_unlock, on_failure, on_state_change):
+    def __init__(self, record, password, on_unlock, on_failure, on_state_change, on_room_info):
         self.record = record
         self.password = password
         self.on_unlock = on_unlock
         self.on_failure = on_failure
         self.on_state_change = on_state_change
+        self.on_room_info = on_room_info
         self.state = "RUNNING"
         self.players = ["Meow", "Bork", "Zed"]
 
@@ -175,6 +176,115 @@ async def test_raspberry_counter_tracks_by_sender(db):
     total, counts = await manager.raspberry_summary(100)
     assert total == 3
     assert [(row.sender_slot, row.count) for row in counts] == [("Meow", 2), ("Bork", 1)]
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_raspberry_counter_survives_untrack_for_same_room(db):
+    manager = SessionManager(
+        slot_links=SlotLinks(db),
+        sessions=Sessions(db, PasswordCrypto(None)),
+        muted_slots=MutedSlots(db),
+        raspberry_counts=RaspberryCounts(db),
+        password_crypto=PasswordCrypto(None),
+        post_message=AsyncMock(),
+        post_failure=AsyncMock(),
+        session_factory=FakeTrackerSession,
+    )
+    await manager.track(
+        channel_id=100,
+        guild_id=10,
+        host="localhost",
+        port=38281,
+        slot_name="Meow",
+        message_style="embed",
+    )
+    await manager._queue_unlock(100, UnlockEvent("Bork", "Meow", "Raspberry", "Loc 1", "Game", 0))
+    await asyncio.sleep(2.2)
+    await manager.untrack(100)
+    await manager.track(
+        channel_id=100,
+        guild_id=10,
+        host="localhost",
+        port=38281,
+        slot_name="Meow",
+        message_style="embed",
+    )
+    total, counts = await manager.raspberry_summary(100)
+    assert total == 1
+    assert [(row.sender_slot, row.count) for row in counts] == [("Meow", 1)]
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_raspberry_counter_uses_room_seed_when_known(db):
+    manager = SessionManager(
+        slot_links=SlotLinks(db),
+        sessions=Sessions(db, PasswordCrypto(None)),
+        muted_slots=MutedSlots(db),
+        raspberry_counts=RaspberryCounts(db),
+        password_crypto=PasswordCrypto(None),
+        post_message=AsyncMock(),
+        post_failure=AsyncMock(),
+        session_factory=FakeTrackerSession,
+    )
+    await manager.track(
+        channel_id=100,
+        guild_id=10,
+        host="localhost",
+        port=38281,
+        slot_name="Meow",
+        message_style="embed",
+    )
+    session = manager._sessions[100]
+    await session.on_room_info("Seed A")
+    await manager._queue_unlock(100, UnlockEvent("Bork", "Meow", "Raspberry", "Loc 1", "Game", 0))
+    await asyncio.sleep(2.2)
+    await manager.untrack(100)
+    await manager.track(
+        channel_id=100,
+        guild_id=10,
+        host="localhost",
+        port=38281,
+        slot_name="Meow",
+        message_style="embed",
+    )
+    new_session = manager._sessions[100]
+    await new_session.on_room_info("Seed B")
+    total, counts = await manager.raspberry_summary(100)
+    assert total == 0
+    assert counts == []
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_raspberry_counter_moves_host_port_count_to_seeded_room(db):
+    manager = SessionManager(
+        slot_links=SlotLinks(db),
+        sessions=Sessions(db, PasswordCrypto(None)),
+        muted_slots=MutedSlots(db),
+        raspberry_counts=RaspberryCounts(db),
+        password_crypto=PasswordCrypto(None),
+        post_message=AsyncMock(),
+        post_failure=AsyncMock(),
+        session_factory=FakeTrackerSession,
+    )
+    await manager.track(
+        channel_id=100,
+        guild_id=10,
+        host="localhost",
+        port=38281,
+        slot_name="Meow",
+        message_style="embed",
+    )
+    await manager._queue_unlock(100, UnlockEvent("Bork", "Meow", "Raspberry", "Loc 1", "Game", 0))
+    await asyncio.sleep(2.2)
+    session = manager._sessions[100]
+    await session.on_room_info("Seed A")
+
+    total, counts = await manager.raspberry_summary(100)
+    assert total == 1
+    assert [(row.sender_slot, row.count) for row in counts] == [("Meow", 1)]
     await manager.close()
 
 

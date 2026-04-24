@@ -34,9 +34,17 @@ async def test_status_returns_embed(cogs_setup):
 async def test_raspberry_returns_embed(cogs_setup):
     bot, _, _ = cogs_setup
     cog = TrackingCog(bot)
-    await bot.session_manager.raspberry_counts.increment(100, "Meow")
-    await bot.session_manager.raspberry_counts.increment(100, "Meow")
-    await bot.session_manager.raspberry_counts.increment(100, "Bork")
+    await bot.session_manager.track(
+        channel_id=100,
+        guild_id=10,
+        host="localhost",
+        port=38281,
+        slot_name="Meow",
+    )
+    room_key = bot.session_manager.raspberry_counts.room_key("localhost", 38281)
+    await bot.session_manager.raspberry_counts.increment(room_key, "Meow")
+    await bot.session_manager.raspberry_counts.increment(room_key, "Meow")
+    await bot.session_manager.raspberry_counts.increment(room_key, "Bork")
     interaction = make_interaction()
     await cog.raspberry.callback(cog, interaction)
     embed = interaction.response.send_message.await_args.kwargs["embed"]

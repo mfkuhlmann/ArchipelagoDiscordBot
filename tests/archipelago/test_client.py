@@ -64,3 +64,32 @@ async def test_run_processes_frames():
         await server.wait_closed()
 
     assert len(received) == 1
+
+
+@pytest.mark.asyncio
+async def test_run_reports_room_seed():
+    seeds = []
+
+    async def on_room_info(seed_name):
+        seeds.append(seed_name)
+
+    async def handler(websocket):
+        await websocket.send(room_info("Seeded Room"))
+        await websocket.recv()
+        await websocket.close()
+
+    server = await websockets.serve(handler, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
+    try:
+        client = ArchipelagoClient(
+            "127.0.0.1",
+            port,
+            "Meow",
+            on_room_info=on_room_info,
+        )
+        await client.run()
+    finally:
+        server.close()
+        await server.wait_closed()
+
+    assert seeds == ["Seeded Room"]

@@ -23,6 +23,7 @@ from archibot.events import UnlockEvent
 
 log = logging.getLogger(__name__)
 EventCallback = Callable[[UnlockEvent], Awaitable[None]]
+RoomInfoCallback = Callable[[str], Awaitable[None]]
 
 
 class ArchipelagoClient:
@@ -34,11 +35,13 @@ class ArchipelagoClient:
         port: int,
         slot_name_value: str,
         on_unlock: EventCallback | None = None,
+        on_room_info: RoomInfoCallback | None = None,
     ) -> None:
         self.host = host
         self.port = port
         self.slot_name = slot_name_value
         self.on_unlock = on_unlock
+        self.on_room_info = on_room_info
         self.seed_name: str | None = None
         self.slot_info: dict[int, dict[str, Any]] = {}
         self.data_package: dict[str, Any] = {}
@@ -122,7 +125,14 @@ class ArchipelagoClient:
         async with websockets.connect(url) as socket:
             self._socket = socket
             async for raw_frame in socket:
+                previous_seed_name = self.seed_name
                 events = self.feed(raw_frame)
+                if (
+                    self.on_room_info is not None
+                    and self.seed_name is not None
+                    and self.seed_name != previous_seed_name
+                ):
+                    await self.on_room_info(self.seed_name)
                 if self._needs_connect:
                     await socket.send(json.dumps([build_connect_packet(self.slot_name, password)]))
                     self._needs_connect = False

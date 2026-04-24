@@ -22,6 +22,7 @@ async def test_upsert_and_get_passwordless_session(db):
     record, password = stored
     assert record.host == "localhost"
     assert record.message_style == "embed"
+    assert record.room_seed_name is None
     assert password == ""
 
 
@@ -68,3 +69,19 @@ async def test_delete_removes_row(db):
     )
     assert await repo.delete(100) == 1
     assert await repo.get(100) is None
+
+
+async def test_update_room_seed_name(db):
+    repo = Sessions(db, PasswordCrypto(None))
+    await repo.upsert(
+        channel_id=100,
+        guild_id=10,
+        host="localhost",
+        port=38281,
+        slot_name="Meow",
+        message_style="embed",
+        password="",
+    )
+    await repo.update_room_seed_name(100, "Sample Seed")
+    record, _ = await repo.get(100)
+    assert record.room_seed_name == "Sample Seed"

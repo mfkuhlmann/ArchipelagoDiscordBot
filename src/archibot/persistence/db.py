@@ -21,6 +21,7 @@ SCHEMA = [
         port            INTEGER NOT NULL,
         slot_name       TEXT    NOT NULL,
         message_style   TEXT    NOT NULL DEFAULT 'embed',
+        room_seed_name  TEXT,
         password_enc    BLOB,
         created_at      TEXT    NOT NULL
     )
@@ -34,10 +35,10 @@ SCHEMA = [
     """,
     """
     CREATE TABLE IF NOT EXISTS raspberry_counts (
-        channel_id      INTEGER NOT NULL,
+        room_key        TEXT    NOT NULL,
         sender_slot     TEXT    NOT NULL,
         count           INTEGER NOT NULL,
-        PRIMARY KEY (channel_id, sender_slot)
+        PRIMARY KEY (room_key, sender_slot)
     )
     """,
     """
@@ -86,6 +87,8 @@ class Database:
         for statement in SCHEMA:
             await self.conn.execute(statement)
         await self._ensure_sessions_message_style_column()
+        await self._ensure_sessions_room_seed_name_column()
+        await self._ensure_raspberry_counts_room_key()
         row = await self.fetchone("SELECT version FROM schema_version")
         if row is None:
             await self.conn.execute("INSERT INTO schema_version (version) VALUES (1)")
@@ -99,3 +102,46 @@ class Database:
         await self.conn.execute(
             "ALTER TABLE sessions ADD COLUMN message_style TEXT NOT NULL DEFAULT 'embed'"
         )
+
+    async def _ensure_sessions_room_seed_name_column(self) -> None:
+        info = await self.fetchall("PRAGMA table_info(sessions)")
+        columns = {row["name"] for row in info}
+        if "room_seed_name" in columns:
+            return
+        await self.conn.execute("ALTER TABLE sessions ADD COLUMN room_seed_name TEXT")
+
+    async def _ensure_raspberry_counts_room_key(self) -> None:
+        info = await self.fetchall("PRAGMA table_info(raspberry_counts)")
+        columns = {row["name"] for row in info}
+        if "room_key" in columns:
+            return
+
+        await self.conn.execute(
+            """
+            CREATE TABLE raspberry_counts_new (
+                room_key        TEXT    NOT NULL,
+                sender_slot     TEXT    NOT NULL,
+                count           INTEGER NOT NULL,
+                PRIMARY KEY (room_key, sender_slot)
+            )
+            """
+        )
+        await self.conn.execute(
+            """
+            INSERT INTO raspberry_counts_new (room_key, sender_slot, count)
+            SELECT
+                COALESCE('ap://' || sessions.host || ':' || sessions.port, 'channel:' || raspberry_counts.channel_id),
+                raspberry_counts.sender_slot,
+                SUM(raspberry_counts.count)
+            FROM raspberry_counts
+            LEFT JOIN sessions ON sessions.channel_id = raspberry_counts.channel_id
+            GROUP BY
+                COALESCE(
+                    'ap://' || sessions.host || ':' || sessions.port,
+                    'channel:' || raspberry_counts.channel_id
+                ),
+                raspberry_counts.sender_slot
+            """
+        )
+        await self.conn.execute("DROP TABLE raspberry_counts")
+        await self.conn.execute("ALTER TABLE raspberry_counts_new RENAME TO raspberry_counts")

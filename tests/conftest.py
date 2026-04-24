@@ -23,12 +23,13 @@ from archibot.session.manager import SessionManager
 
 
 class FakeTrackerSession:
-    def __init__(self, record, password, on_unlock, on_failure, on_state_change):
+    def __init__(self, record, password, on_unlock, on_failure, on_state_change, on_room_info):
         self.record = record
         self.password = password
         self.on_unlock = on_unlock
         self.on_failure = on_failure
         self.on_state_change = on_state_change
+        self.on_room_info = on_room_info
         self.state = "RUNNING"
         self.players = ["Meow", "Bork", "Zed"]
 

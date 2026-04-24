@@ -17,6 +17,7 @@ class SessionRecord:
     slot_name: str
     message_style: str
     created_at: str
+    room_seed_name: str | None = None
 
 
 class Sessions:
@@ -40,15 +41,17 @@ class Sessions:
         await self.db.execute(
             """
             INSERT INTO sessions (
-                channel_id, guild_id, host, port, slot_name, message_style, password_enc, created_at
+                channel_id, guild_id, host, port, slot_name, message_style,
+                room_seed_name, password_enc, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)
             ON CONFLICT(channel_id) DO UPDATE
             SET guild_id = excluded.guild_id,
                 host = excluded.host,
                 port = excluded.port,
                 slot_name = excluded.slot_name,
                 message_style = excluded.message_style,
+                room_seed_name = NULL,
                 password_enc = excluded.password_enc
             """,
             (
@@ -75,7 +78,9 @@ class Sessions:
     async def get(self, channel_id: int) -> tuple[SessionRecord, str] | None:
         row = await self.db.fetchone(
             """
-            SELECT channel_id, guild_id, host, port, slot_name, message_style, password_enc, created_at
+            SELECT
+                channel_id, guild_id, host, port, slot_name, message_style,
+                room_seed_name, password_enc, created_at
             FROM sessions
             WHERE channel_id = ?
             """,
@@ -88,12 +93,24 @@ class Sessions:
     async def list_all(self) -> list[tuple[SessionRecord, str]]:
         rows = await self.db.fetchall(
             """
-            SELECT channel_id, guild_id, host, port, slot_name, message_style, password_enc, created_at
+            SELECT
+                channel_id, guild_id, host, port, slot_name, message_style,
+                room_seed_name, password_enc, created_at
             FROM sessions
             ORDER BY channel_id
             """
         )
         return [self._row_to_record(row) for row in rows]
+
+    async def update_room_seed_name(self, channel_id: int, room_seed_name: str) -> None:
+        await self.db.execute(
+            """
+            UPDATE sessions
+            SET room_seed_name = ?
+            WHERE channel_id = ?
+            """,
+            (room_seed_name, channel_id),
+        )
 
     async def delete(self, channel_id: int) -> int:
         exists = await self.db.fetchone(
@@ -115,6 +132,9 @@ class Sessions:
                 slot_name=str(row["slot_name"]),
                 message_style=str(row["message_style"]),
                 created_at=str(row["created_at"]),
+                room_seed_name=(
+                    None if row["room_seed_name"] is None else str(row["room_seed_name"])
+                ),
             ),
             self.crypto.decrypt(row["password_enc"]),
         )
